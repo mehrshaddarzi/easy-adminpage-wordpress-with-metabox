@@ -6,33 +6,10 @@ Description: This Plugin demonstrates how you can build your own plugin pages us
 Author: Heiko Rabe
 Author URI: http://www.code-styling.de/
 Version: 1.2
-
-License:
- ==============================================================================
- Copyright 2009 Heiko Rabe  (email : info@code-styling.de)
-
- This program is free software; you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation; either version 2 of the License, or
- (at your option) any later version.
- 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
-
- You should have received a copy of the GNU General Public License
- along with this program; if not, write to the Free Software
- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-//avoid direct calls to this file where wp core files not present
-if (!function_exists ('add_action')) {
-		header('Status: 403 Forbidden');
-		header('HTTP/1.1 403 Forbidden');
-		exit();
-}
 
+//avoid direct calls to this file where wp core files not present
 define('HOWTO_METABOX_ADMIN_PAGE_NAME', 'howto_metaboxes');
 
 //class that reperesent the complete plugin
@@ -52,18 +29,16 @@ class howto_metabox_plugin {
 	function on_screen_layout_columns($columns, $screen) {
 		//bugfix: $this->pagehook is not valid because it will be set at hook 'admin_menu' but 
 		//multisite pages or user dashboard pages calling different menu an menu hooks!
-		if (!defined( 'WP_NETWORK_ADMIN' ) && !defined( 'WP_USER_ADMIN' )) {
 			if ($screen == $this->pagehook) {
 				$columns[$this->pagehook] = 2;
 			}
-		}
 		return $columns;
 	}
 	
 	//extend the admin menu
 	function on_admin_menu() {
 		//add our own option page, you can also add it to different sections or use your own one
-		$this->pagehook = add_options_page('Howto Metabox Page Title', "HowTo Metaboxes", 'manage_options', HOWTO_METABOX_ADMIN_PAGE_NAME, array(&$this, 'on_show_page'));
+		$this->pagehook = add_menu_page('Howto Metabox Page Title', "HowTo Metaboxes", 'manage_options', HOWTO_METABOX_ADMIN_PAGE_NAME, array(&$this, 'on_show_page'));
 		//register  callback gets call prior your own page gets rendered
 		add_action('load-'.$this->pagehook, array(&$this, 'on_load_page'));
 	}
@@ -86,15 +61,19 @@ class howto_metabox_plugin {
 	//executed to show the plugins complete admin page
 	function on_show_page() {
 		//we need the global screen column value to beable to have a sidebar in WordPress 2.8
-		global $screen_layout_columns;
+		global $screen_layout_columns, $hook_suffix;
+
+        /* enable add_meta_boxes function in this page. */
+        do_action( 'add_meta_boxes', $hook_suffix );
+
 		//add a 3rd content box now for demonstration purpose, boxes added at start of page rendering can't be switched on/off, 
 		//may be needed to ensure that a special box is always available
-		add_meta_box('howto-metaboxes-contentbox-3', 'Contentbox 3 Title (impossible to hide)', array(&$this, 'on_contentbox_3_content'), $this->pagehook, 'normal', 'core');
-		add_meta_box('howto-metaboxes-sidebox-2', 'Sidebox 2 Title 5', array(&$this, 'on_sidebox_2_content'), $this->pagehook, 'side', 'core');
+	//	add_meta_box('howto-metaboxes-contentbox-3', 'Contentbox 3 Title (impossible to hide)', array(&$this, 'on_contentbox_3_content'), $this->pagehook, 'normal', 'core');
+	//add_meta_box('howto-metaboxes-sidebox-2', 'Sidebox 2 Title 5', array(&$this, 'on_sidebox_2_content'), $this->pagehook, 'side', 'core');
 		//define some data can be given to each metabox during rendering
 		$data = array('My Data 1', 'My Data 2', 'Available Data 1');
 		?>
-		<div id="howto-metaboxes-general" class="wrap">
+		<form id="howto-metaboxes-general" class="wrap">
 		<?php screen_icon('options-general'); ?>
 		<h2>Metabox Showcase Plugin Page</h2>
 		<form action="admin-post.php" method="post">
@@ -102,29 +81,28 @@ class howto_metabox_plugin {
 			<?php wp_nonce_field('closedpostboxes', 'closedpostboxesnonce', false ); ?>
 			<?php wp_nonce_field('meta-box-order', 'meta-box-order-nonce', false ); ?>
 			<input type="hidden" name="action" value="save_howto_metaboxes_general" />
-		
-			<div id="poststuff" class="metabox-holder<?php echo 2 == $screen_layout_columns ? ' has-right-sidebar' : ''; ?>">
-				<div id="side-info-column" class="inner-sidebar">
+
+            <div id="poststuff">
+
+                <div id="post-body" class="metabox-holder columns-<?php echo 1 == get_current_screen()->get_columns() ? '1' : '2'; ?>">
+
+                    <div id="postbox-container-1" class="postbox-container">
 					<?php do_meta_boxes($this->pagehook, 'side', $data); ?>
-				</div>
-				<div id="post-body" class="has-sidebar">
-					<div id="post-body-content" class="has-sidebar-content">
+                    </div><!-- #postbox-container-1 -->
+
+                    <div id="postbox-container-2" class="postbox-container">
 						<?php do_meta_boxes($this->pagehook, 'normal', $data); ?>
-						<h4>Static text and input section</h4>
-						<p>Here is some static paragraph or your own static content. Can be placed where ever you want.</p>
-						<textarea name="static-textarea" style="width:100%;">Change this text ....</textarea>
-						<br/>
+
 						<?php do_meta_boxes($this->pagehook, 'additional', $data); ?>
-						<p>
-							<input type="submit" value="Save Changes" class="button-primary" name="Submit"/>	
-						</p>
-					</div>
-				</div>
-				<br class="clear"/>
-								
-			</div>	
+                    </div><!-- #postbox-container-2 -->
+
+                </div><!-- #post-body -->
+
+                <br class="clear">
+
+            </div><!-- #poststuff -->
+
 		</form>
-		</div>
 	<script type="text/javascript">
 		//<![CDATA[
 		jQuery(document).ready( function($) {
